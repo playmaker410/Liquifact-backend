@@ -5,7 +5,20 @@ jest.mock('../../src/metrics', () => {
     val: 0,
   });
 
+  // Shared in-memory prom-client registry stub. Returned by getRegistry() so
+  // that job modules using _counter() / new Counter({ registers: [getRegistry()] })
+  // can resolve counters without hitting the real prom-client registry (which
+  // is process-global and throws "already registered" across test suites).
+  const _registryStub = {
+    getSingleMetric: jest.fn().mockReturnValue(null),
+    registerMetric: jest.fn(),
+  };
+
   return {
+    // Registry accessor used by job helpers (_counter, etc.) — must be present
+    // so any job module that calls getRegistry() at load time does not throw.
+    getRegistry: jest.fn().mockReturnValue(_registryStub),
+
     footprintCacheHitsTotal: makeCounter(),
     footprintCacheMissesTotal: makeCounter(),
     footprintCacheEvictionsTotal: makeCounter(),
